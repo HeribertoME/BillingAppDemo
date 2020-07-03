@@ -8,6 +8,8 @@ class BillingAgent(val activity: Activity, val callback: BillingCallback): Purch
     private var billingClient = BillingClient.newBuilder(activity).setListener(this).enablePendingPurchases().build()
     private val productsSKUList = listOf("country_view")
     private val productsList = arrayListOf<SkuDetails>()
+    private val subscriptionsSKUList = listOf("countires_subscription")
+    private val subscriptionsList = arrayListOf<SkuDetails>()
 
     init {
         billingClient.startConnection(object : BillingClientStateListener {
@@ -17,6 +19,7 @@ class BillingAgent(val activity: Activity, val callback: BillingCallback): Purch
             override fun onBillingSetupFinished(billingResult: BillingResult) {
                 if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
                     getAvailableProducts()
+                    getAvailableSubscriptions()
                 }
             }
         })
@@ -27,7 +30,15 @@ class BillingAgent(val activity: Activity, val callback: BillingCallback): Purch
     }
 
     override fun onPurchasesUpdated(billingResult: BillingResult, purchases: MutableList<Purchase>?) {
-        checkProduct(billingResult, purchases)
+        //checkProduct(billingResult, purchases)
+        checkSubscription(billingResult, purchases)
+    }
+
+    fun checkSubscription(billingResult: BillingResult, purchases: MutableList<Purchase>?) {
+        if (billingResult.responseCode == BillingClient.BillingResponseCode.OK ||
+            billingResult.responseCode == BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED) {
+            callback.onTokenConsumed()
+        }
     }
 
     fun checkProduct(billingResult: BillingResult, purchases: MutableList<Purchase>?) {
@@ -75,6 +86,22 @@ class BillingAgent(val activity: Activity, val callback: BillingCallback): Purch
         }
     }
 
+    fun getAvailableSubscriptions() {
+        if (billingClient.isReady) {
+            val params = SkuDetailsParams
+                .newBuilder()
+                .setSkusList(subscriptionsSKUList)
+                .setType(BillingClient.SkuType.SUBS)
+                .build()
+            billingClient.querySkuDetailsAsync(params) { billingResult, skuDetailsList ->
+                if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
+                    subscriptionsList.clear()
+                    subscriptionsList.addAll(skuDetailsList)
+                }
+            }
+        }
+    }
+
     fun purchaseView() {
         if (productsList.size > 0) {
             val billingFlowParams = BillingFlowParams
@@ -82,6 +109,21 @@ class BillingAgent(val activity: Activity, val callback: BillingCallback): Purch
                 .setSkuDetails(productsList[0])
                 .build()
             billingClient.launchBillingFlow(activity, billingFlowParams)
+        }
+    }
+
+    fun purchaseSubscriptionView() {
+        val list = billingClient.queryPurchases(BillingClient.SkuType.SUBS).purchasesList
+        if (list.size > 0) {
+            callback.onTokenConsumed()
+        } else {
+            if (subscriptionsList.size > 0) {
+                val billingFlowParams = BillingFlowParams
+                    .newBuilder()
+                    .setSkuDetails(subscriptionsList[0])
+                    .build()
+                billingClient.launchBillingFlow(activity, billingFlowParams)
+            }
         }
     }
 

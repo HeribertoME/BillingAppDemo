@@ -59,7 +59,8 @@ class MainActivity : AppCompatActivity(), CountryClickListener, CountriesPresent
 //            startActivity(DetailActivity.getIntent(this, country))
 //        }
         clickedCountry = country
-        billingAgent?.purchaseView()
+        //billingAgent?.purchaseView()
+        billingAgent?.purchaseSubscriptionView()
     }
 
     override fun setCountries(countries: List<Country>?) {
